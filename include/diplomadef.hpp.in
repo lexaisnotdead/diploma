@@ -1,0 +1,19 @@
+#pragma once
+
+#include <eosio/eosio.hpp>
+
+#cmakedefine DIPLOMA_COLLECTION "@DIPLOMA_COLLECTION@"
+#ifndef DIPLOMA_COLLECTION
+#error "Collection is not defined."
+#endif
+
+const eosio::name COLLECTION = eosio::name(DIPLOMA_COLLECTION);
+
+#cmakedefine DIPLOMA_TOKEN "@DIPLOMA_TOKEN@"
+#ifndef DIPLOMA_TOKEN
+#error "Token is not defined."
+#endif
+const eosio::name TOKEN_ACCOUNT = eosio::name(DIPLOMA_TOKEN);
+
+const eosio::name FOODS = eosio::name("foods");
+const eosio::name ANIMALS = eosio::name("animals");

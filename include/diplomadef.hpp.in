@@ -15,5 +15,8 @@ const eosio::name COLLECTION = eosio::name(DIPLOMA_COLLECTION);
 #endif
 const eosio::name TOKEN_ACCOUNT = eosio::name(DIPLOMA_TOKEN);
 
+const eosio::symbol_code TOKEN_SYMBOL_CODE = eosio::symbol_code("WQE");
+const eosio::symbol TOKEN_SYMBOL = eosio::symbol(TOKEN_SYMBOL_CODE, 0);
+
 const eosio::name FOODS = eosio::name("foods");
 const eosio::name ANIMALS = eosio::name("animals");

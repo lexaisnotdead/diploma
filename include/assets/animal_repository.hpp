@@ -13,3 +13,5 @@ public:
 
     void write_animal(eosio::name owner, const Animal &animal);
 };
+
+int get_animal_rarity(const string& rarity);

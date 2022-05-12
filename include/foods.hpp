@@ -20,7 +20,7 @@ struct FoodAttributes {
 
 inline const map<string, size_t> FoodAttributes::by_name = {
         {"name", offset(name)},
-        {"healthiness", offset(healthiness)},
+        {"Healthiness", offset(healthiness)},
 };
 
 #undef offset

@@ -1,4 +1,5 @@
 #include <diploma.hpp>
+#include <randomizer.hpp>
 
 #define SECONDS_IN_DAY 86400
 
@@ -9,6 +10,16 @@ void diploma::on_asset_transfer(name from, name to, const vector<uint64_t> &asse
 
     if (to != _self) {
         transfer_handler(from, to, asset_ids, memo);
+        return;
+    }
+
+    if (memo == "Craft") {
+        craft(from, asset_ids);
+        return;
+    }
+
+    if (memo == "Birth") {
+        oh_my_godd__a_child(from, asset_ids);
         return;
     }
 
@@ -113,8 +124,7 @@ void diploma::claim_balance(name player) {
     player_info_t.set(player_info, _self);
 }
 
-void diploma::on_mint_asset(uint64_t asset_id, name authorized_minter, name collection_name, name schema_name,
-                            int32_t template_id, name new_asset_owner) {
+void diploma::on_mint_asset(uint64_t asset_id, name collection_name, name schema_name, name new_asset_owner) {
     if (collection_name != COLLECTION) {
         return;
     }
@@ -197,3 +207,198 @@ void diploma::transfer_handler(name from, name to, const vector<uint64_t> &asset
     }
 }
 
+void diploma::craft(name player, const vector<uint64_t> &asset_ids) {
+    check(asset_ids.size() == 2, "For craft you need 2 pets");
+    vector<Animal> pets {animal_repository.read_animal(_self, asset_ids.front()), animal_repository.read_animal(_self, asset_ids.back())};
+
+    check(pets.front().get_rarity() == pets.back().get_rarity(), "Pets must be with the same rarity");
+
+    crafts_or_births.emplace(_self, [&](craft_or_birth_record &rec) {
+        rec.id = crafts_or_births.available_primary_key();
+        rec.player = player;
+        rec.rarity = pets.front().get_rarity();
+        rec.first_asset_id = asset_ids.front();
+        rec.second_asset_id = asset_ids.back();
+        rec.type = CRAFT;
+    });
+
+    request_random(crafts_or_births.available_primary_key() - 1);
+}
+
+void diploma::oh_my_godd__a_child(name player, const vector<uint64_t> &asset_ids) {
+    check(asset_ids.size() == 2, "For the birth of a child you need 2 pets");
+    vector<Animal> pets {animal_repository.read_animal(_self, asset_ids.front()), animal_repository.read_animal(_self, asset_ids.back())};
+
+    check(pets.front().get_gender() != pets.back().get_gender(), "Pets must be of different genders");
+    check(pets.front().get_species() == pets.back().get_species(), "Pets must be with the same species");
+
+    crafts_or_births.emplace(_self, [&](craft_or_birth_record &rec) {
+        rec.id = crafts_or_births.available_primary_key();
+        rec.player = player;
+        rec.rarity = pets.front().get_rarity();
+        rec.first_asset_id = asset_ids.front();
+        rec.second_asset_id = asset_ids.back();
+        rec.type = BIRTH;
+    });
+
+    request_random(crafts_or_births.available_primary_key() - 1);
+}
+
+void diploma::receiverand(uint64_t customer_id, checksum256 random_value) {
+    require_auth("orng.wax"_n);
+    Randomizer random(random_value.extract_as_byte_array());
+
+    auto random_number = random.next<uint64_t>();
+
+    auto iter = crafts_or_births.find(customer_id);
+    check(iter != crafts_or_births.end(), "There is no such craft or birth");
+
+    if (iter->type == CRAFT) {
+        continue_craft(customer_id, random_number);
+    } else {
+        continue_birth(customer_id, random_number);
+    }
+}
+
+uint64_t read_uint64(const checksum256 &value) {
+    auto byte_array = value.extract_as_byte_array();
+
+    uint64_t int_value = 0;
+    for (int i = 0; i < 8; i++) {
+        int_value <<= 8;
+        int_value |= (uint64_t) byte_array[i];
+    }
+
+    return int_value;
+}
+
+void diploma::request_random(uint64_t id) {
+    auto size = transaction_size();
+    char buf[size];
+
+    auto read = read_transaction(buf, size);
+    check(size == read, "read_transaction() has failed.");
+
+    auto tx_signing_value = sha256(buf, size);
+
+    uint64_t random_int = read_uint64(tx_signing_value) ^id;
+
+    action(
+            {_self, "active"_n},
+            "orng.wax"_n,
+            "requestrand"_n,
+            std::tuple<uint64_t, uint64_t, name>{id, random_int, _self}
+    ).send();
+}
+
+void diploma::continue_craft(uint64_t id, uint64_t random_number) {
+    auto iter = crafts_or_births.find(id);
+    check(iter != crafts_or_births.end(), "Oops...");
+    check(iter->type == CRAFT, "operator if doesn't work");
+
+    bool chance = random_number % 100 >= 50;
+    uint64_t rarity;
+    if (chance) {
+        rarity = iter->rarity + 1;
+    } else {
+        rarity = iter->rarity;
+    }
+
+    if (iter->rarity == LEGENDARY) {
+        rarity = LEGENDARY;
+    }
+
+    auto animals = get_animals(rarity);
+    uint64_t random_pet_id = random_number % animals.available_primary_key();
+    auto animal_itr = animals.begin();
+
+    auto i = 0;
+    while (i < random_pet_id) {
+        animal_itr++;
+        ++i;
+    }
+
+    int32_t template_id;
+
+    if (chance) {
+        template_id = animal_itr->girl_template_id;
+    } else {
+        template_id = animal_itr->boy_template_id;
+    }
+
+    auto player_info_t = get_player_info(iter->player);
+    auto player_info = player_info_t.get_or_default();
+
+    player_info.newborns.push_back(template_id);
+    player_info_t.set(player_info, _self);
+
+    aa::burn_asset(_self, iter->first_asset_id);
+    aa::burn_asset(_self, iter->second_asset_id);
+}
+
+string get_lowercase_name(const string& name) {
+    string result;
+    result.resize(name.size(), '\0');
+    int i = 0;
+    for (auto c: name) {
+        if (c == ' ') {
+            break;
+        }
+
+        result[i++] = (char) tolower(c);
+    }
+
+    return result;
+}
+
+void diploma::on_new_template(int32_t template_id, name collection_name, name schema_name) {
+    if (collection_name != COLLECTION) {
+        return;
+    }
+
+    if (schema_name != ANIMALS) {
+        return;
+    }
+
+    aa::templates_t templates = aa::get_templates(collection_name);
+    auto template_itr = templates.get(template_id, ("There is no template with id " + to_string(template_id)).c_str());
+
+    aa::schemas_t schemas = aa::get_schemas(collection_name);
+    const auto& schema_itr = schemas.get(schema_name.value, "There is no such schema");
+
+    AnimalAttributes attributes;
+    aa::deserialize(template_itr.immutable_serialized_data, schema_itr.format, attributes);
+
+    auto rarity = get_animal_rarity(attributes.rarity);
+    name animal_name = name(get_lowercase_name(attributes.name));
+
+    auto animals = get_animals(rarity);
+    auto iter = animals.find(animal_name.value);
+
+    if (iter == animals.end()) {
+        animals.emplace(_self, [&](animal_record &rec) {
+            rec.name = animal_name;
+            if (attributes.gender == "Boy") {
+                rec.boy_template_id = template_id;
+            } else {
+                rec.girl_template_id = template_id;
+            }
+        });
+    } else {
+        animals.modify(iter, _self, [&](animal_record &rec) {
+            if (attributes.gender == "Boy") {
+                rec.boy_template_id = template_id;
+            } else {
+                rec.girl_template_id = template_id;
+            }
+        });
+    }
+}
+
+void diploma::continue_birth(uint64_t id, uint64_t random_number) {
+    auto iter = crafts_or_births.find(id);
+    check(iter != crafts_or_births.end(), "Oopsie...");
+    check(iter->type == BIRTH, "operator if doesn't work");
+
+
+}

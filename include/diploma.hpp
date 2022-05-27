@@ -36,9 +36,6 @@ public:
     [[eosio::on_notify("atomicassets::lognewtempl")]]
     void on_new_template(int32_t template_id, name collection_name, name schema_name);
 
-    [[eosio::on_notify("atomicassets::logburnasset")]]
-    void on_burn_asset(name owner, uint64_t asset_id, name collection_name, name schema);
-
     [[eosio::on_notify("atomicassets::logmint")]]
     void on_mint_asset(uint64_t asset_id, name collection_name, name schema_name, name new_asset_owner);
 

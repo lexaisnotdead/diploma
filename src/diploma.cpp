@@ -99,17 +99,6 @@ void diploma::feed(name player, uint64_t pet_asset_id, uint64_t food_asset_id) {
     animal_repository.write_animal(player, pet);
 }
 
-void diploma::on_burn_asset(name owner, uint64_t asset_id, name collection_name, name schema) {
-    if (collection_name != COLLECTION) {
-        return;
-    }
-
-    if (schema != FOODS) {
-        return;
-    }
-
-}
-
 void diploma::claim_balance(name player) {
     require_auth(player);
 
@@ -400,5 +389,27 @@ void diploma::continue_birth(uint64_t id, uint64_t random_number) {
     check(iter != crafts_or_births.end(), "Oopsie...");
     check(iter->type == BIRTH, "operator if doesn't work");
 
+    bool chance = random_number % 100 >= 50;
+    int32_t template_id;
 
+    auto parent = animal_repository.read_animal(_self, iter->first_asset_id);
+    name animal_name = name(get_lowercase_name(parent.get_name()));
+
+    auto animals = get_animals(iter->rarity);
+    auto animal_itr = animals.find(animal_name.value);
+
+    if (chance) {
+        template_id = animal_itr->girl_template_id;
+    } else {
+        template_id = animal_itr->boy_template_id;
+    }
+
+    auto player_info_t = get_player_info(iter->player);
+    auto player_info = player_info_t.get_or_default();
+
+    player_info.newborns.push_back(template_id);
+    player_info_t.set(player_info, _self);
+
+    aa::burn_asset(_self, iter->first_asset_id);
+    aa::burn_asset(_self, iter->second_asset_id);
 }

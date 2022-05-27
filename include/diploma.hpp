@@ -49,6 +49,9 @@ public:
     void lets_go_home(name player, uint64_t asset_id);
 
     ACTION receiverand(uint64_t customer_id, checksum256 random_value);
+
+    [[eosio::action("claim.asset")]]
+    void claim_assets(name player, uint16_t limit);
 private:
 
     TABLE player_info_record {

@@ -413,3 +413,25 @@ void diploma::continue_birth(uint64_t id, uint64_t random_number) {
     aa::burn_asset(_self, iter->first_asset_id);
     aa::burn_asset(_self, iter->second_asset_id);
 }
+
+void diploma::claim_assets(name player, uint16_t limit) {
+    require_auth(player);
+
+    auto player_info_t = get_player_info(player);
+    auto player_info = player_info_t.get_or_default();
+
+    auto count = min(limit, (uint16_t) player_info.newborns.size());
+    vector<int32_t> new_pets;
+    new_pets.assign(player_info.newborns.begin(), player_info.newborns.begin() + count);
+
+    player_info.newborns.erase(player_info.newborns.begin(), player_info.newborns.begin() + count);
+    player_info_t.set(player_info, _self);
+
+    uint16_t minted = 0;
+    for (auto template_id: new_pets) {
+        aa::mint_asset(_self, COLLECTION, ANIMALS, template_id, player, {}, {}, {});
+        ++minted;
+    }
+
+    check(minted == count, "mint != count, mint " + to_string(minted) + " count " + to_string(count));
+}

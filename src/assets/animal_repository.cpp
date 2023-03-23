@@ -1,6 +1,12 @@
 #include <assets/animal_repository.hpp>
 
-int get_rarity(const string& rarity) {
+Animal AnimalRepository::read_animal(eosio::name owner, uint64_t asset_id) {
+    Asset animal = get_asset(owner, asset_id);
+
+    return read_animal(animal);
+}
+
+int get_animal_rarity(const string& rarity) {
     char ch = rarity.at(0);
 
     switch (ch) {
@@ -16,14 +22,7 @@ int get_rarity(const string& rarity) {
             return LEGENDARY;
         default:
             check(false, "Unsupported rarity '" + rarity + "'.");
-
     }
-}
-
-Animal AnimalRepository::read_animal(eosio::name owner, uint64_t asset_id) {
-    Asset animal = get_asset(owner, asset_id);
-
-    return read_animal(animal);
 }
 
 Animal AnimalRepository::read_animal(const Asset &animal) {
@@ -35,9 +34,10 @@ Animal AnimalRepository::read_animal(const Asset &animal) {
     aa::deserialize(animal.templates.immutable_serialized_data, animal.schemas.format, attributes);
     aa::deserialize(animal.asset.mutable_serialized_data, animal.schemas.format, mutable_attributes);
 
-    int rarity = get_rarity(attributes.rarity);
+    int rarity = get_animal_rarity(attributes.rarity);
+    bool gender = attributes.gender == "Boy";
 
-    return Animal(attributes.name, animal.asset.asset_id, animal.asset.template_id, rarity, mutable_attributes);
+    return Animal(attributes.name, animal.asset.asset_id, attributes.species, rarity, gender, mutable_attributes);
 }
 
 void AnimalRepository::write_animal(eosio::name owner, const Animal &animal) {

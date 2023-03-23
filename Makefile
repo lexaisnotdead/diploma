@@ -1,13 +1,13 @@
 SHELL=/bin/bash
 project = diploma
-account ?= poka_net
+account ?= somitwaxplay
 dir ?= ${project}
 endpoint ?= "https://testnet.wax.pink.gg"
 docker = docker run -it -v $(CURDIR):/wax -v home:/root winwinsoftware/wax-dev:latest
 docker_nt = docker run -i -v $(CURDIR):/wax -v home:/root winwinsoftware/wax-dev:latest
 
-collection ?= hz
-token ?= qwe
+collection ?= somitplaywax
+token ?= QWE
 
 ifeq ($(OS),Windows_NT)
     MY_OS := Windows
